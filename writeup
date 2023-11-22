@@ -1,0 +1,48 @@
+grandpa.htb
+
+First thing I notice is we cannot ping grandpa.htb
+nmap -Pn grandpa.htb to avoid the testing portion of the scan
+
+our result is port 80 is open
+nmap -sV -p 80 grandpa.htb returns
+        80/tcp, open, http, Microsoft IIS httpd 6.0
+That is the answer to our first question
+
+Next we need to find a CVE specific to the IIS 6.0 version.
+We found CVE-2017-7269
+        This is a result of a Buffer Overflow vulnerbility from an improper validation of the IF header in a PROPFIND request
+        An attacker could exploit this in the IIS WebDAV Component with a crafted request using PROPFIND
+        It can result in DoS or remote code execution
+
+Next question they are looking for a metasploit module that can be used against this version
+If we search for 7269, we get the result for exploit/windows/iis/iis_webdav_scstoragepathfromurl
+
+Next, there is supposed to be a recon module that will list possible privilege escalation paths on the system
+looking in the post/multi/recon module, we found local_exploit_suggester
+
+using the first exploit in msfconsole, we adjust the options to point to grandpa.htb
+We get a successful session, however we cannot read any user data in C:\Documents and Settings
+This is where we will need to use the other module
+
+we set it in another terminal, and all we have to pass is the session as an option
+I set the session to one per my other shell, however it doesn't show that it's found
+We use the command "background" to set this current session in the background as sessoin one
+then, we use local_exploit_suggester setting the session to 1
+there are 6 total exploits that show up as potentially vulnerable
+         1   exploit/windows/local/ms10_015_kitrap0d                        Yes                      
+         2   exploit/windows/local/ms14_058_track_popup_menu                Yes                      
+         3   exploit/windows/local/ms14_070_tcpip_ioctl                     Yes                      
+         4   exploit/windows/local/ms15_051_client_copy_image               Yes                      
+         5   exploit/windows/local/ms16_016_webdav                          Yes                      
+         6   exploit/windows/local/ppr_flatten_rec                          Yes 
+researching each one, tcpip_ioctl contains privilege escalation
+
+I use /windows/local/ms14_070_tcpip_ioctl now and set the session to 1 and my local IP in the OpenVPN network
+we now send the exploit
+this seems to time out on both my sessions
+
+I went back into session 1 and it timed out, I re-established my session by re-running the exploit for scstoragepathfromurl
+
+I now have a root shell!
+The flags are relatively easy to find from here
+C:\Users and Documents\
